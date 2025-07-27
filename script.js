@@ -1,14 +1,48 @@
 // Global variables
 let resourceColors = {};
 let eventsData = [];
+let currentConfig = {};
 
-// Resource definitions (facilities)
-const resources = [
-    { id: '会議室(さくら)', name: '会議室(さくら)' },
-    { id: '相談室(スミレ・コスモス)', name: '相談室(スミレ・コスモス)' },
-    { id: 'テレワークルームA', name: 'テレワークルームA' },
-    { id: 'テレワークルームB', name: 'テレワークルームB' }
-];
+// Default configuration for LogoForm
+const defaultConfig = {
+    dateColumn: '5:date',
+    roomColumn: '1:checkbox',
+    nameColumns: ['244:lastname', '244:firstname', '91:lastname', '91:firstname'],
+    facilities: [
+        { 
+            id: '会議室(さくら)', 
+            name: '会議室(さくら)', 
+            timeColumn: '7:checkbox',
+            keywords: ['会議室', 'さくら']
+        },
+        { 
+            id: '相談室(スミレ・コスモス)', 
+            name: '相談室(スミレ・コスモス)', 
+            timeColumn: '8:checkbox',
+            keywords: ['相談室', 'スミレ', 'コスモス']
+        },
+        { 
+            id: 'テレワークルームA', 
+            name: 'テレワークルームA', 
+            timeColumn: '234:checkbox',
+            keywords: ['テレワークルームA']
+        },
+        { 
+            id: 'テレワークルームB', 
+            name: 'テレワークルームB', 
+            timeColumn: '235:checkbox',
+            keywords: ['テレワークルームB']
+        }
+    ]
+};
+
+// Initialize with default config
+currentConfig = JSON.parse(JSON.stringify(defaultConfig));
+
+// Get current resources from config
+function getCurrentResources() {
+    return currentConfig.facilities || [];
+}
 
 // Generate random colors for each resource
 function generateRandomColor() {
@@ -20,7 +54,7 @@ function generateRandomColor() {
 
 // Initialize resource colors
 function initializeResourceColors() {
-    resources.forEach(resource => {
+    getCurrentResources().forEach(resource => {
         resourceColors[resource.id] = generateRandomColor();
     });
 }
@@ -101,30 +135,24 @@ function mergeContinuousSlots(slots) {
     return merged;
 }
 
-// Get calendar ID for room
+// Get calendar ID for room using dynamic config
 function getCalendarIdForRoom(room) {
-    if (room.includes('会議室') || room.includes('さくら')) {
-        return '会議室(さくら)';
-    } else if (room.includes('相談室') || room.includes('スミレ') || room.includes('コスモス')) {
-        return '相談室(スミレ・コスモス)';
-    } else if (room.includes('テレワークルームA')) {
-        return 'テレワークルームA';
-    } else if (room.includes('テレワークルームB')) {
-        return 'テレワークルームB';
+    const facilities = getCurrentResources();
+    for (const facility of facilities) {
+        if (facility.keywords.some(keyword => room.includes(keyword))) {
+            return facility.id;
+        }
     }
     return room; // fallback
 }
 
-// Get time slots column for room
+// Get time slots column for room using dynamic config
 function getTimeSlotsForRoom(room, row) {
-    if (room.includes('会議室') || room.includes('さくら')) {
-        return row['7:checkbox'] || '';
-    } else if (room.includes('相談室') || room.includes('スミレ') || room.includes('コスモス')) {
-        return row['8:checkbox'] || '';
-    } else if (room.includes('テレワークルームA')) {
-        return row['234:checkbox'] || '';
-    } else if (room.includes('テレワークルームB')) {
-        return row['235:checkbox'] || '';
+    const facilities = getCurrentResources();
+    for (const facility of facilities) {
+        if (facility.keywords.some(keyword => room.includes(keyword))) {
+            return row[facility.timeColumn] || '';
+        }
     }
     return '';
 }
@@ -135,25 +163,29 @@ function parseCSVData(csvData) {
     let eventId = 1;
     
     for (const row of csvData) {
-        // Get date
-        const date = (row['5:date'] || '').trim();
+        // Get date using dynamic config
+        const date = (row[currentConfig.dateColumn] || '').trim();
         if (!date) continue;
         
-        // Get rooms
-        const rooms = (row['1:checkbox'] || '').trim();
+        // Get rooms using dynamic config
+        const rooms = (row[currentConfig.roomColumn] || '').trim();
         if (!rooms) continue;
         
-        // Get name (priority order: 244 fields first, then 91 fields)
+        // Get name using dynamic config
         let name = '';
-        const lastname1 = (row['244:lastname'] || '').trim();
-        const firstname1 = (row['244:firstname'] || '').trim();
-        const lastname2 = (row['91:lastname'] || '').trim();
-        const firstname2 = (row['91:firstname'] || '').trim();
+        const nameColumns = currentConfig.nameColumns;
         
-        if (lastname1 || firstname1) {
-            name = `${lastname1} ${firstname1}`.trim();
-        } else if (lastname2 || firstname2) {
-            name = `${lastname2} ${firstname2}`.trim();
+        // Try to build name from configured columns
+        const nameParts = [];
+        for (const column of nameColumns) {
+            const value = (row[column] || '').trim();
+            if (value) {
+                nameParts.push(value);
+            }
+        }
+        
+        if (nameParts.length > 0) {
+            name = nameParts.join(' ');
         }
         
         if (!name) {
@@ -284,7 +316,7 @@ function renderTimelineCalendar(events) {
     body.className = 'timeline-body';
     
     // Create rows for each resource
-    resources.forEach(resource => {
+    getCurrentResources().forEach(resource => {
         const row = document.createElement('div');
         row.className = 'timeline-row';
         row.style.gridTemplateColumns = `200px repeat(${dates.length}, 100px)`;
@@ -439,6 +471,9 @@ function processCSVFile(file) {
                     }
                     
                     try {
+                        // Load current config from UI
+                        loadConfigFromUI();
+                        
                         const events = parseCSVData(results.data);
                         eventsData = events;
                         
@@ -492,8 +527,115 @@ document.addEventListener('DOMContentLoaded', function() {
     // Show initial empty state
     document.getElementById('calendar').innerHTML = '<div class="no-events">CSVファイルを選択してください</div>';
     
+    // Initialize configuration UI
+    initializeConfigUI();
+    
     console.log('施設予約タイムラインカレンダー が初期化されました');
 });
+
+// Configuration UI functions
+function initializeConfigUI() {
+    loadConfigFromUI();
+    renderFacilityList();
+}
+
+function loadPreset(presetName) {
+    if (presetName === 'logoform') {
+        currentConfig = JSON.parse(JSON.stringify(defaultConfig));
+    } else if (presetName === 'custom') {
+        // Keep current config or create minimal config
+        if (!currentConfig.facilities || currentConfig.facilities.length === 0) {
+            currentConfig = {
+                dateColumn: 'date',
+                roomColumn: 'room',
+                nameColumns: ['name'],
+                facilities: []
+            };
+        }
+    }
+    
+    updateConfigUI();
+    initializeResourceColors();
+}
+
+function updateConfigUI() {
+    document.getElementById('dateColumn').value = currentConfig.dateColumn;
+    document.getElementById('roomColumn').value = currentConfig.roomColumn;
+    document.getElementById('nameColumns').value = currentConfig.nameColumns.join(',');
+    renderFacilityList();
+}
+
+function loadConfigFromUI() {
+    currentConfig.dateColumn = document.getElementById('dateColumn').value;
+    currentConfig.roomColumn = document.getElementById('roomColumn').value;
+    currentConfig.nameColumns = document.getElementById('nameColumns').value.split(',').map(s => s.trim());
+}
+
+function renderFacilityList() {
+    const facilityList = document.getElementById('facilityList');
+    facilityList.innerHTML = '';
+    
+    getCurrentResources().forEach((facility, index) => {
+        const facilityDiv = document.createElement('div');
+        facilityDiv.className = 'facility-config';
+        facilityDiv.innerHTML = `
+            <div class="config-row">
+                <label style="width: 80px;">施設名:</label>
+                <input type="text" class="config-input" value="${facility.name}" onchange="updateFacility(${index}, 'name', this.value)">
+                <button class="config-button" onclick="removeFacility(${index})" style="background-color: #dc3545;">削除</button>
+            </div>
+            <div class="config-row">
+                <label style="width: 80px;">時間列:</label>
+                <input type="text" class="config-input" value="${facility.timeColumn}" onchange="updateFacility(${index}, 'timeColumn', this.value)" placeholder="例: 7:checkbox">
+            </div>
+            <div class="config-row">
+                <label style="width: 80px;">キーワード:</label>
+                <input type="text" class="config-input" value="${facility.keywords.join(',')}" onchange="updateFacility(${index}, 'keywords', this.value)" placeholder="例: 会議室,さくら">
+            </div>
+        `;
+        facilityList.appendChild(facilityDiv);
+    });
+}
+
+function addFacility() {
+    const newFacility = {
+        id: `facility_${Date.now()}`,
+        name: '新しい施設',
+        timeColumn: '',
+        keywords: ['新しい施設']
+    };
+    
+    currentConfig.facilities.push(newFacility);
+    resourceColors[newFacility.id] = generateRandomColor();
+    renderFacilityList();
+}
+
+function removeFacility(index) {
+    const facility = currentConfig.facilities[index];
+    delete resourceColors[facility.id];
+    currentConfig.facilities.splice(index, 1);
+    renderFacilityList();
+}
+
+function updateFacility(index, field, value) {
+    const facility = currentConfig.facilities[index];
+    
+    if (field === 'keywords') {
+        facility.keywords = value.split(',').map(s => s.trim()).filter(s => s);
+    } else if (field === 'name') {
+        const oldId = facility.id;
+        facility.name = value;
+        facility.id = value;
+        
+        // Update color mapping
+        if (resourceColors[oldId]) {
+            resourceColors[facility.id] = resourceColors[oldId];
+            delete resourceColors[oldId];
+        }
+    } else {
+        facility[field] = value;
+    }
+}
 
 // Generate weekly date ranges
 function getWeeklyRanges(events) {
@@ -562,7 +704,7 @@ function createWeeklyTableHTML(week) {
                 <tbody>
     `;
     
-    resources.forEach(resource => {
+    getCurrentResources().forEach(resource => {
         html += `<tr>`;
         html += `<td style="border: 1px solid #333; padding: 8px; font-weight: bold; background-color: ${resourceColors[resource.id]}20;">${resource.name}</td>`;
         

@@ -238,6 +238,72 @@
         .instructions ul {
             margin-bottom: 0;
         }
+        
+        .config-section {
+            background-color: #e9ecef;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        
+        .config-section h4 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #495057;
+        }
+        
+        .config-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            gap: 10px;
+        }
+        
+        .config-input {
+            padding: 6px 10px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+            flex: 1;
+        }
+        
+        .config-button {
+            background-color: #6c757d;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .config-button:hover {
+            background-color: #5a6268;
+        }
+        
+        .preset-button {
+            background-color: #17a2b8;
+            color: white;
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin: 2px;
+        }
+        
+        .preset-button:hover {
+            background-color: #138496;
+        }
+        
+        .facility-config {
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 5px 0;
+            background: #f8f9fa;
+        }
     </style>
 </head>
 <body>
@@ -246,7 +312,37 @@
         
         <div class="instructions">
             <h3>使用方法</h3>
-            <p>LogoForm の CSV ファイルを選択すると、施設別・日付別のタイムライン表示で予約状況を確認できます。</p>
+            <p>CSV ファイルを選択すると、施設別・日付別のタイムライン表示で予約状況を確認できます。</p>
+        </div>
+        
+        <div class="config-section">
+            <h4>📋 施設・CSV設定</h4>
+            <div style="margin-bottom: 15px;">
+                <strong>プリセット:</strong>
+                <button class="preset-button" onclick="loadPreset('logoform')">LogoForm標準</button>
+                <button class="preset-button" onclick="loadPreset('custom')">カスタム設定</button>
+            </div>
+            
+            <div class="config-row">
+                <label style="width: 120px;">日付列:</label>
+                <input type="text" id="dateColumn" class="config-input" placeholder="例: 5:date" value="5:date">
+            </div>
+            
+            <div class="config-row">
+                <label style="width: 120px;">部屋選択列:</label>
+                <input type="text" id="roomColumn" class="config-input" placeholder="例: 1:checkbox" value="1:checkbox">
+            </div>
+            
+            <div class="config-row">
+                <label style="width: 120px;">予約者名列:</label>
+                <input type="text" id="nameColumns" class="config-input" placeholder="例: 244:lastname,244:firstname,91:lastname,91:firstname" value="244:lastname,244:firstname,91:lastname,91:firstname">
+            </div>
+            
+            <div id="facilitiesConfig">
+                <h5>施設設定:</h5>
+                <div id="facilityList"></div>
+                <button class="config-button" onclick="addFacility()">+ 施設追加</button>
+            </div>
         </div>
         
         <div class="upload-section">
