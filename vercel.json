@@ -1,11 +1,4 @@
 {
-  "name": "harapa-yoyaku",
   "version": 2,
-  "public": true,
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ]
+  "public": true
 }
